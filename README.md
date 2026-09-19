@@ -74,10 +74,10 @@ The final framework incorporates persistent economic regimes, clustered defaults
 The final framework has **two distinct learning tasks**. Logistic Regression predicts borrower risk before policy training. The Transformer policy, trained by PPO, decides how to allocate the bank's capital each month.
 
 <p align="center">
-  <img src="assets/readme/framework-overview.png" width="1000" alt="Two-stage framework. Logistic Regression predicts a default-risk score for each borrower. Risk bucket, loan size, and term define 30 segments whose historical statistics calibrate the simulator. A Transformer policy trained by PPO then allocates bank capital each month inside that simulator.">
+  <img src="assets/framework-overview.png" width="1000" alt="Two-stage framework. Logistic Regression predicts a default-risk score for each borrower. Risk bucket, loan size, and term define 30 segments whose historical statistics calibrate the simulator. A Transformer policy trained by PPO then allocates bank capital each month inside that simulator.">
 </p>
 
-*Figure 1. Borrower risk prediction, segment calibration, and monthly capital allocation. [Vector version](assets/readme/framework-overview.svg).*
+*Figure 1. Borrower risk prediction, segment calibration, and monthly capital allocation. [Vector version](assets/framework-overview.svg).*
 
 1. **Predict borrower risk with Logistic Regression.** Application-time features produce a scalar estimated default probability, or **risk score**. Historical default outcomes provide supervised training labels. The score summarizes many borrower attributes and orders borrowers by risk.
 2. **Form 30 borrower segments.** Divide borrowers into five risk buckets, then combine these with three loan-size tiers and two loan terms. For example, low-risk borrowers requesting small, short-term loans form one segment.
@@ -119,10 +119,10 @@ Here, $B_t$ is current cash, $B_{\min}$ is the minimum reserve (**$10M**), and $
 ### Transformer Policy Trained with PPO
 
 <p align="center">
-  <img src="assets/readme/policy-explained.png" width="1000" alt="Transformer policy explained: each of 30 segment tokens combines shared bank context with that segment's demand, loan balances, and parameters. Attention compares segments. Actor heads decide where and how much to lend, while the critic estimates future return for PPO training.">
+  <img src="assets/policy-explained.png" width="1000" alt="Transformer policy explained: each of 30 segment tokens combines shared bank context with that segment's demand, loan balances, and parameters. Attention compares segments. Actor heads decide where and how much to lend, while the critic estimates future return for PPO training.">
 </p>
 
-*Figure 2. Segment tokens, the allocation policy, and PPO training. Based on report §3.2–3.5, presentation slides 6–7, and the final implementation. Final model design led by Hu-yeon Cho. [Vector version](assets/readme/policy-explained.svg).*
+*Figure 2. Segment tokens, the allocation policy, and PPO training. Based on report §3.2–3.5, presentation slides 6–7, and the final implementation. Final model design led by Hu-yeon Cho. [Vector version](assets/policy-explained.svg).*
 
 **Why a Transformer?** Lending opportunities compete for the same cash. Attention lets each segment be evaluated in relation to the others. Here, tokens represent **borrower segments within a month**, rather than a sequence of months. **PPO** is the algorithm that trains this policy using rewards across monthly decisions.
 
@@ -150,10 +150,10 @@ The central result is **profitable lending with low liquidation risk under simul
 This was not simply a no-lending strategy: the report records **$8.99M in default losses for PPO**, versus **$6.11M for fixed conservative**, alongside higher PPO profit. This is consistent with taking meaningful credit risk while managing liquidation risk; it does not establish equal deployment volumes. Conservative heuristics also remained safe, but earned less.
 
 <p align="center">
-  <img src="assets/readme/robustness-comparison.png" width="1000" alt="Two separate comparisons from the report and presentation. Early experiments compare simple PPO, behavioral cloning, and heuristics. In the final stress-inclusive test, PPO earns 10.04 million dollars at 0.1 percent liquidation, while Greedy or LP earns 0.43 million at 22.5 percent liquidation. Conservative heuristics have lower profit and zero liquidation.">
+  <img src="assets/robustness-comparison.png" width="1000" alt="Two separate comparisons from the report and presentation. Early experiments compare simple PPO, behavioral cloning, and heuristics. In the final stress-inclusive test, PPO earns 10.04 million dollars at 0.1 percent liquidation, while Greedy or LP earns 0.43 million at 22.5 percent liquidation. Conservative heuristics have lower profit and zero liquidation.">
 </p>
 
-*Figure 3. Comparisons from presentation slides 9 and 13 and report §4.1 and §5.4, redrawn for readability. Initial ML experiments and final stress evaluation use different environments; they do not establish a direct final-PPO-versus-BC robustness ranking. [Vector version](assets/readme/robustness-comparison.svg).*
+*Figure 3. Comparisons from presentation slides 9 and 13 and report §4.1 and §5.4, redrawn for readability. Initial ML experiments and final stress evaluation use different environments; they do not establish a direct final-PPO-versus-BC robustness ranking. [Vector version](assets/robustness-comparison.svg).*
 
 ### My Comparison Experiments
 
@@ -220,7 +220,7 @@ The week numbers follow the archive's folder names. They do not establish exact 
 
 **Code reading order:** `train_segment_ppo.py` for the overall pipeline → `lending_rl_agent/data.py` for preprocessing and scoring → `segment_simulator.py` and `torch_segment_simulator.py` for the environment → `ppo.py` for the policy and training algorithm. The last three files are also under `lending_rl_agent/`.
 
-- [Dataset download](https://drive.google.com/drive/folders/1_uwVd9zwkKQcZXy6IqhEkNAyuWlJVgb7?usp=sharing)
+- [Dataset download](\https://drive.google.com/drive/folders/1_uwVd9zwkKQcZXy6IqhEkNAyuWlJVgb7?usp=sharing)
 - Team report: [DOCX](week15_Project_Final_Result/Final_Report_Week15_ver2.docx) · Team presentation: [PPTX](week15_Project_Final_Result/RL_Capital_Allocation.pptx).
 - [My experiment guide](week13_Experiments/README.md): comparison setup and training commands.
 - [Final selected model and results](week15_Project_Final_Result/Code_Data/RL-main_codes/outputs/final_selected_ppo_406_dynamic_allwin): checkpoint, scenario tables, and training history.
