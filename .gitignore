@@ -1,0 +1,21 @@
+# Raw Lending Club dataset (download from the README's Google Drive link)
+accepted_2007_to_2018Q4.csv
+accepted_2007_to_2018Q4.csv.gz
+
+# Python environments and caches
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.ipynb_checkpoints/
+**/outputs/cache/
+
+# Local secrets
+.env
+.env.*
+!.env.example
+
+# OS and Office temporary files
+.DS_Store
+Thumbs.db
+~$*

@@ -1,0 +1,517 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Liquidity-Constrained Lending PPO</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #111827;
+      --panel-2: #172033;
+      --line: #334155;
+      --text: #e5e7eb;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --green: #34d399;
+      --yellow: #fbbf24;
+      --red: #fb7185;
+      --purple: #a78bfa;
+      --orange: #fb923c;
+      --cyan: #22d3ee;
+      --radius: 8px;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      overflow: hidden;
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: 320px 1fr 360px;
+      height: 100vh;
+      min-height: 640px;
+    }
+
+    aside, section.details {
+      background: var(--panel);
+      border-color: var(--line);
+      overflow: auto;
+    }
+    aside { border-right: 1px solid var(--line); }
+    section.details { border-left: 1px solid var(--line); }
+
+    .pane { padding: 18px; }
+    h1 {
+      margin: 0 0 8px;
+      font-size: 18px;
+      line-height: 1.25;
+      letter-spacing: 0;
+    }
+    h2 {
+      margin: 22px 0 10px;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+    }
+    p { color: var(--muted); line-height: 1.45; margin: 8px 0; }
+    code {
+      color: #bae6fd;
+      background: rgba(56, 189, 248, 0.08);
+      padding: 1px 5px;
+      border-radius: 5px;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+      margin-top: 14px;
+    }
+    .stat {
+      background: var(--panel-2);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 10px;
+    }
+    .stat strong { display: block; font-size: 20px; }
+    .stat span { color: var(--muted); font-size: 12px; }
+
+    input {
+      width: 100%;
+      border: 1px solid var(--line);
+      background: #0b1220;
+      color: var(--text);
+      padding: 10px 11px;
+      border-radius: var(--radius);
+      outline: none;
+    }
+    input:focus { border-color: var(--accent); }
+
+    .button-list { display: grid; gap: 7px; }
+    button {
+      width: 100%;
+      border: 1px solid var(--line);
+      background: var(--panel-2);
+      color: var(--text);
+      border-radius: var(--radius);
+      padding: 9px 10px;
+      text-align: left;
+      cursor: pointer;
+      font: inherit;
+    }
+    button:hover, button.active {
+      border-color: var(--accent);
+      background: rgba(56, 189, 248, 0.12);
+    }
+
+    .legend { display: grid; gap: 8px; }
+    .legend-row { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; }
+    .swatch { width: 12px; height: 12px; border-radius: 3px; flex: 0 0 auto; }
+
+    main {
+      position: relative;
+      background:
+        linear-gradient(rgba(148, 163, 184, 0.06) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(148, 163, 184, 0.06) 1px, transparent 1px);
+      background-size: 32px 32px;
+      overflow: hidden;
+    }
+
+    .toolbar {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      right: 16px;
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      z-index: 3;
+      pointer-events: none;
+    }
+    .pill {
+      pointer-events: auto;
+      background: rgba(15, 23, 42, 0.88);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 8px 12px;
+      color: var(--muted);
+      font-size: 12px;
+      backdrop-filter: blur(8px);
+    }
+    .pill strong { color: var(--text); }
+
+    svg { width: 100%; height: 100%; display: block; }
+    .edge {
+      stroke: #64748b;
+      stroke-opacity: 0.45;
+      stroke-width: 1.6;
+      fill: none;
+    }
+    .edge.highlight { stroke: var(--accent); stroke-opacity: 0.95; stroke-width: 2.6; }
+    .node rect {
+      stroke: rgba(226, 232, 240, 0.48);
+      stroke-width: 1.2;
+      rx: 8;
+      filter: drop-shadow(0 8px 12px rgba(0,0,0,0.24));
+      cursor: pointer;
+    }
+    .node text {
+      pointer-events: none;
+      fill: #f8fafc;
+      font-size: 12px;
+      font-weight: 650;
+      letter-spacing: 0;
+    }
+    .node .type {
+      fill: rgba(248, 250, 252, 0.72);
+      font-size: 10px;
+      font-weight: 500;
+      text-transform: uppercase;
+    }
+    .node.dim { opacity: 0.16; }
+    .node.selected rect { stroke: #f8fafc; stroke-width: 2.4; }
+
+    .detail-title { font-size: 20px; font-weight: 750; margin: 0 0 6px; }
+    .badge-row { display: flex; gap: 6px; flex-wrap: wrap; margin: 10px 0 14px; }
+    .badge {
+      display: inline-flex;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 4px 8px;
+      color: var(--muted);
+      font-size: 12px;
+      background: var(--panel-2);
+    }
+    .relation {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 9px;
+      margin-bottom: 8px;
+      background: #0b1220;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .relation strong { color: var(--text); }
+    .muted { color: var(--muted); }
+    .empty { color: var(--muted); font-style: italic; }
+
+    @media (max-width: 1100px) {
+      .app { grid-template-columns: 280px 1fr; }
+      section.details { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside>
+      <div class="pane">
+        <h1 id="project-title"></h1>
+        <p id="project-description"></p>
+        <div class="stats">
+          <div class="stat"><strong id="stat-nodes">0</strong><span>nodes</span></div>
+          <div class="stat"><strong id="stat-edges">0</strong><span>edges</span></div>
+          <div class="stat"><strong id="stat-layers">0</strong><span>layers</span></div>
+          <div class="stat"><strong id="stat-tour">0</strong><span>tour steps</span></div>
+        </div>
+
+        <h2>Search</h2>
+        <input id="search" placeholder="Search nodes, tags, summaries..." />
+
+        <h2>Layers</h2>
+        <div id="layers" class="button-list"></div>
+
+        <h2>Tour</h2>
+        <div id="tour" class="button-list"></div>
+
+        <h2>Legend</h2>
+        <div class="legend" id="legend"></div>
+      </div>
+    </aside>
+
+    <main>
+      <div class="toolbar">
+        <div class="pill"><strong>Standalone</strong> offline HTML</div>
+        <div class="pill" id="status">All nodes visible</div>
+      </div>
+      <svg id="graph" viewBox="0 0 1200 820" role="img" aria-label="Knowledge graph"></svg>
+    </main>
+
+    <section class="details">
+      <div class="pane">
+        <h2>Selected Node</h2>
+        <div id="details"><p class="empty">Click a node to inspect it.</p></div>
+      </div>
+    </section>
+  </div>
+
+  <script id="graph-data" type="application/json">{"version":"1.0.0","project":{"name":"Liquidity-Constrained Lending PPO","languages":["python","markdown","text"],"frameworks":["PyTorch","Gymnasium","pandas","scikit-learn"],"description":"Compact core graph for the simulation-based PPO lending allocation pipeline.","analyzedAt":"2026-05-08T14:05:36.658548+09:00","gitCommitHash":"no-git"},"nodes":[{"id":"file:train_segment_ppo.py","type":"file","name":"train_segment_ppo.py","summary":"End-to-end orchestration for data loading, calibration, PPO training, validation/test evaluation, stress tests, and output writing.","tags":["python","orchestration","entrypoint"],"complexity":"complex","filePath":"train_segment_ppo.py"},{"id":"file:lending_rl_agent/data.py","type":"file","name":"data.py","summary":"Lending Club loading, leakage-aware cleaning, temporal split assignment, and train-only risk scoring.","tags":["python","data","ml"],"complexity":"complex","filePath":"lending_rl_agent/data.py"},{"id":"file:lending_rl_agent/segment_simulator.py","type":"file","name":"segment_simulator.py","summary":"Segment calibration, CPU/Gymnasium simulator, accounting transition, reward, liquidation, baselines, and rollout evaluation.","tags":["python","simulator","calibration"],"complexity":"complex","filePath":"lending_rl_agent/segment_simulator.py"},{"id":"file:lending_rl_agent/torch_segment_simulator.py","type":"file","name":"torch_segment_simulator.py","summary":"Vectorized Torch/MPS simulator for PPO rollouts and policy evaluation.","tags":["python","torch","mps","simulator"],"complexity":"complex","filePath":"lending_rl_agent/torch_segment_simulator.py"},{"id":"file:lending_rl_agent/ppo.py","type":"file","name":"ppo.py","summary":"PPO agent, attention actor-critic, rollout collection, GAE, and PPO update logic.","tags":["python","ppo","rl"],"complexity":"complex","filePath":"lending_rl_agent/ppo.py"},{"id":"file:lending_rl_agent/__init__.py","type":"file","name":"__init__.py","summary":"Package exports for the final lending RL modules.","tags":["python","package"],"complexity":"simple","filePath":"lending_rl_agent/__init__.py"},{"id":"class:lending_rl_agent/data.py:MarketData","type":"class","name":"MarketData","summary":"Container for monthly borrower pool arrays used by older or diagnostic data flows.","tags":["python","data"],"complexity":"simple","filePath":"lending_rl_agent/data.py"},{"id":"class:lending_rl_agent/segment_simulator.py:SegmentCalibration","type":"class","name":"SegmentCalibration","summary":"Split-specific segment parameter object containing demand, PD, rate, recovery, expected profit, and maturity metadata.","tags":["python","calibration"],"complexity":"complex","filePath":"lending_rl_agent/segment_simulator.py"},{"id":"class:lending_rl_agent/segment_simulator.py:SegmentLendingEnv","type":"class","name":"SegmentLendingEnv","summary":"Gymnasium environment implementing monthly lending allocation, accounting, liquidity/capital constraints, liquidation, and terminal runoff.","tags":["python","environment"],"complexity":"complex","filePath":"lending_rl_agent/segment_simulator.py"},{"id":"class:lending_rl_agent/torch_segment_simulator.py:TorchBatchConfig","type":"class","name":"TorchBatchConfig","summary":"Configuration object for the vectorized Torch simulator.","tags":["python","torch","config"],"complexity":"simple","filePath":"lending_rl_agent/torch_segment_simulator.py"},{"id":"class:lending_rl_agent/torch_segment_simulator.py:TorchSegmentBatchEnv","type":"class","name":"TorchSegmentBatchEnv","summary":"Batched Torch/MPS simulator mirroring the CPU environment schema for fast PPO rollouts.","tags":["python","torch","simulator"],"complexity":"complex","filePath":"lending_rl_agent/torch_segment_simulator.py"},{"id":"class:lending_rl_agent/ppo.py:ActorCritic","type":"class","name":"ActorCritic","summary":"Generic MLP actor-critic used as an alternative policy architecture.","tags":["python","ppo","mlp"],"complexity":"moderate","filePath":"lending_rl_agent/ppo.py"},{"id":"class:lending_rl_agent/ppo.py:SegmentAttentionActorCritic","type":"class","name":"SegmentAttentionActorCritic","summary":"Attention plus MLP-head actor-critic that encodes segment tokens and outputs deployment and allocation logits.","tags":["python","ppo","attention"],"complexity":"complex","filePath":"lending_rl_agent/ppo.py"},{"id":"class:lending_rl_agent/ppo.py:PPOConfig","type":"class","name":"PPOConfig","summary":"Hyperparameter and architecture configuration for PPO training.","tags":["python","ppo","config"],"complexity":"simple","filePath":"lending_rl_agent/ppo.py"},{"id":"class:lending_rl_agent/ppo.py:PPOAgent","type":"class","name":"PPOAgent","summary":"Wrapper around the policy network, optimizer, action sampling, deterministic evaluation, and checkpoint save/load metadata.","tags":["python","ppo","agent"],"complexity":"moderate","filePath":"lending_rl_agent/ppo.py"},{"id":"concept:temporal-split-risk-scoring","type":"concept","name":"Temporal Split and Risk Scoring","summary":"Clean accepted loans, split by issue month, fit logistic regression only on train, and score all splits.","tags":["concept","ml","split"],"complexity":"moderate"},{"id":"concept:segment-calibration","type":"concept","name":"Segment Calibration","summary":"Use risk score buckets, amount tiers, and term buckets to build 30 segment-level simulator parameter vectors.","tags":["concept","calibration"],"complexity":"complex"},{"id":"concept:state-action-schema","type":"concept","name":"State and Action Schema","summary":"Observation is cash, demand, loan-book exposure, and segment parameters; action is deployment fraction plus segment allocation logits.","tags":["concept","mdp"],"complexity":"moderate"},{"id":"concept:liquidity-capital-liquidation","type":"concept","name":"Liquidity and Capital Liquidation","summary":"Track exposure-adjusted liquidity reserve, capital adequacy, liquidation triggers, and 60% liquidity haircut.","tags":["concept","risk","liquidation"],"complexity":"complex"},{"id":"concept:terminal-runoff-accounting","type":"concept","name":"Terminal Runoff Accounting","summary":"After decision horizon, run off remaining loan book with no new disbursement and keep decision/runoff/terminal profit separated.","tags":["concept","accounting"],"complexity":"moderate"},{"id":"concept:torch-mps-batch-rollout","type":"concept","name":"Torch/MPS Batch Rollout","summary":"Vectorized expected-default simulator path used to keep PPO rollout and evaluation math on Torch/MPS.","tags":["concept","gpu","torch"],"complexity":"complex"},{"id":"concept:ppo-attention-policy","type":"concept","name":"PPO Attention Policy","summary":"Attention encoder over segment tokens with MLP actor and critic heads, trained with PPO and GAE.","tags":["concept","ppo","attention"],"complexity":"complex"},{"id":"concept:validation-test-stress-evaluation","type":"concept","name":"Validation/Test/Stress Evaluation","summary":"Evaluate trained PPO and baselines in validation, test, and stress calibrated simulators with common random numbers.","tags":["concept","evaluation"],"complexity":"moderate"},{"id":"document:README.md","type":"document","name":"README.md","summary":"Top-level methodology, commands, outputs, and run instructions.","tags":["docs","overview"],"complexity":"simple","filePath":"README.md"},{"id":"document:docs/ARCHITECTURE.md","type":"document","name":"ARCHITECTURE.md","summary":"Detailed architecture and methodology map for the final PPO lending pipeline.","tags":["docs","architecture"],"complexity":"simple","filePath":"docs/ARCHITECTURE.md"},{"id":"document:docs/ML_RL_PIPELINE_KO.md","type":"document","name":"ML_RL_PIPELINE_KO.md","summary":"Korean internal pipeline/spec document with module contracts, invariants, and validation checklist.","tags":["docs","internal-spec"],"complexity":"simple","filePath":"docs/ML_RL_PIPELINE_KO.md"},{"id":"config:requirements-neural.txt","type":"config","name":"requirements-neural.txt","summary":"Runtime dependencies for neural/PPO simulator training.","tags":["config","dependencies"],"complexity":"simple","filePath":"requirements-neural.txt"}],"edges":[{"source":"file:lending_rl_agent/data.py","target":"class:lending_rl_agent/data.py:MarketData","type":"contains","direction":"forward","weight":1.0},{"source":"file:lending_rl_agent/segment_simulator.py","target":"class:lending_rl_agent/segment_simulator.py:SegmentCalibration","type":"contains","direction":"forward","weight":1.0},{"source":"file:lending_rl_agent/segment_simulator.py","target":"class:lending_rl_agent/segment_simulator.py:SegmentLendingEnv","type":"contains","direction":"forward","weight":1.0},{"source":"file:lending_rl_agent/torch_segment_simulator.py","target":"class:lending_rl_agent/torch_segment_simulator.py:TorchBatchConfig","type":"contains","direction":"forward","weight":1.0},{"source":"file:lending_rl_agent/torch_segment_simulator.py","target":"class:lending_rl_agent/torch_segment_simulator.py:TorchSegmentBatchEnv","type":"contains","direction":"forward","weight":1.0},{"source":"file:lending_rl_agent/ppo.py","target":"class:lending_rl_agent/ppo.py:ActorCritic","type":"contains","direction":"forward","weight":1.0},{"source":"file:lending_rl_agent/ppo.py","target":"class:lending_rl_agent/ppo.py:SegmentAttentionActorCritic","type":"contains","direction":"forward","weight":1.0},{"source":"file:lending_rl_agent/ppo.py","target":"class:lending_rl_agent/ppo.py:PPOConfig","type":"contains","direction":"forward","weight":1.0},{"source":"file:lending_rl_agent/ppo.py","target":"class:lending_rl_agent/ppo.py:PPOAgent","type":"contains","direction":"forward","weight":1.0},{"source":"file:train_segment_ppo.py","target":"file:lending_rl_agent/data.py","type":"depends_on","direction":"forward","weight":0.8,"description":"Main script loads and scores accepted loans."},{"source":"file:train_segment_ppo.py","target":"file:lending_rl_agent/segment_simulator.py","type":"depends_on","direction":"forward","weight":0.8,"description":"Main script builds segment calibration, CPU envs, and baselines."},{"source":"file:train_segment_ppo.py","target":"file:lending_rl_agent/torch_segment_simulator.py","type":"depends_on","direction":"forward","weight":0.8,"description":"Main script uses Torch batch env by default."},{"source":"file:train_segment_ppo.py","target":"file:lending_rl_agent/ppo.py","type":"depends_on","direction":"forward","weight":0.8,"description":"Main script trains/evaluates PPO agent."},{"source":"file:lending_rl_agent/torch_segment_simulator.py","target":"file:lending_rl_agent/segment_simulator.py","type":"depends_on","direction":"forward","weight":0.8,"description":"Torch batch env consumes SegmentCalibration and mirrors simulator accounting."},{"source":"file:lending_rl_agent/__init__.py","target":"file:lending_rl_agent/data.py","type":"exports","direction":"forward","weight":0.6,"description":"Package exports data utilities."},{"source":"file:lending_rl_agent/__init__.py","target":"file:lending_rl_agent/segment_simulator.py","type":"exports","direction":"forward","weight":0.6,"description":"Package exports segment simulator utilities."},{"source":"file:lending_rl_agent/data.py","target":"concept:temporal-split-risk-scoring","type":"implements","direction":"forward","weight":0.8,"description":"Data module implements temporal split and risk scoring."},{"source":"class:lending_rl_agent/segment_simulator.py:SegmentCalibration","target":"concept:segment-calibration","type":"implements","direction":"forward","weight":0.8,"description":"SegmentCalibration materializes split-specific simulator parameters."},{"source":"class:lending_rl_agent/segment_simulator.py:SegmentLendingEnv","target":"concept:state-action-schema","type":"implements","direction":"forward","weight":0.8,"description":"Environment defines observation and action schema."},{"source":"class:lending_rl_agent/segment_simulator.py:SegmentLendingEnv","target":"concept:liquidity-capital-liquidation","type":"implements","direction":"forward","weight":0.8,"description":"Environment enforces liquidity and capital breach liquidation."},{"source":"class:lending_rl_agent/segment_simulator.py:SegmentLendingEnv","target":"concept:terminal-runoff-accounting","type":"implements","direction":"forward","weight":0.8,"description":"Environment accounts for terminal loan-book runoff."},{"source":"class:lending_rl_agent/torch_segment_simulator.py:TorchSegmentBatchEnv","target":"concept:torch-mps-batch-rollout","type":"implements","direction":"forward","weight":0.8,"description":"Torch batch env implements vectorized rollout path."},{"source":"class:lending_rl_agent/ppo.py:SegmentAttentionActorCritic","target":"concept:ppo-attention-policy","type":"implements","direction":"forward","weight":0.8,"description":"Attention actor-critic implements the default PPO policy network."},{"source":"file:train_segment_ppo.py","target":"concept:validation-test-stress-evaluation","type":"implements","direction":"forward","weight":0.8,"description":"Main script writes validation, test, and stress policy comparisons."},{"source":"concept:temporal-split-risk-scoring","target":"concept:segment-calibration","type":"transforms","direction":"forward","weight":0.7,"description":"Risk scores and split labels feed segment calibration."},{"source":"concept:segment-calibration","target":"concept:state-action-schema","type":"transforms","direction":"forward","weight":0.7,"description":"Segment parameters become simulator state features."},{"source":"concept:state-action-schema","target":"concept:ppo-attention-policy","type":"depends_on","direction":"forward","weight":0.7,"description":"PPO policy consumes the state/action schema."},{"source":"concept:ppo-attention-policy","target":"concept:torch-mps-batch-rollout","type":"depends_on","direction":"forward","weight":0.7,"description":"PPO policy is trained through batched simulator rollouts."},{"source":"concept:torch-mps-batch-rollout","target":"concept:validation-test-stress-evaluation","type":"transforms","direction":"forward","weight":0.7,"description":"Rollout engine produces policy evaluation metrics."},{"source":"document:README.md","target":"concept:temporal-split-risk-scoring","type":"documents","direction":"forward","weight":0.5},{"source":"document:README.md","target":"concept:segment-calibration","type":"documents","direction":"forward","weight":0.5},{"source":"document:README.md","target":"concept:ppo-attention-policy","type":"documents","direction":"forward","weight":0.5},{"source":"document:README.md","target":"concept:validation-test-stress-evaluation","type":"documents","direction":"forward","weight":0.5},{"source":"document:docs/ARCHITECTURE.md","target":"concept:temporal-split-risk-scoring","type":"documents","direction":"forward","weight":0.5},{"source":"document:docs/ARCHITECTURE.md","target":"concept:segment-calibration","type":"documents","direction":"forward","weight":0.5},{"source":"document:docs/ARCHITECTURE.md","target":"concept:ppo-attention-policy","type":"documents","direction":"forward","weight":0.5},{"source":"document:docs/ARCHITECTURE.md","target":"concept:validation-test-stress-evaluation","type":"documents","direction":"forward","weight":0.5},{"source":"document:docs/ML_RL_PIPELINE_KO.md","target":"concept:temporal-split-risk-scoring","type":"documents","direction":"forward","weight":0.5},{"source":"document:docs/ML_RL_PIPELINE_KO.md","target":"concept:segment-calibration","type":"documents","direction":"forward","weight":0.5},{"source":"document:docs/ML_RL_PIPELINE_KO.md","target":"concept:ppo-attention-policy","type":"documents","direction":"forward","weight":0.5},{"source":"document:docs/ML_RL_PIPELINE_KO.md","target":"concept:validation-test-stress-evaluation","type":"documents","direction":"forward","weight":0.5},{"source":"config:requirements-neural.txt","target":"file:lending_rl_agent/ppo.py","type":"configures","direction":"forward","weight":0.5,"description":"Dependency manifest includes neural training dependencies."}],"layers":[{"id":"layer:data-risk-scoring","name":"Data and Risk Scoring","description":"Cleaning, temporal split, risk scoring, and train-only ML scorer output.","nodeIds":["file:lending_rl_agent/data.py","class:lending_rl_agent/data.py:MarketData","concept:temporal-split-risk-scoring"]},{"id":"layer:segment-calibration-simulator","name":"Segment Calibration and CPU Simulator","description":"Segment parameter estimation, CPU environment accounting, liquidity/capital checks, liquidation, and terminal runoff.","nodeIds":["file:lending_rl_agent/segment_simulator.py","class:lending_rl_agent/segment_simulator.py:SegmentCalibration","class:lending_rl_agent/segment_simulator.py:SegmentLendingEnv","concept:segment-calibration","concept:state-action-schema","concept:liquidity-capital-liquidation","concept:terminal-runoff-accounting"]},{"id":"layer:torch-batch-rollout","name":"Torch/MPS Batch Rollout","description":"Vectorized simulator path for GPU-backed PPO rollouts and evaluation.","nodeIds":["file:lending_rl_agent/torch_segment_simulator.py","class:lending_rl_agent/torch_segment_simulator.py:TorchBatchConfig","class:lending_rl_agent/torch_segment_simulator.py:TorchSegmentBatchEnv","concept:torch-mps-batch-rollout"]},{"id":"layer:ppo-agent","name":"PPO Agent","description":"Policy/value networks, attention actor-critic, PPO agent wrapper, and training algorithm.","nodeIds":["file:lending_rl_agent/ppo.py","class:lending_rl_agent/ppo.py:ActorCritic","class:lending_rl_agent/ppo.py:SegmentAttentionActorCritic","class:lending_rl_agent/ppo.py:PPOConfig","class:lending_rl_agent/ppo.py:PPOAgent","concept:ppo-attention-policy"]},{"id":"layer:orchestration-evaluation","name":"Training Orchestration and Evaluation","description":"Main entry point connecting calibration, train scenarios, PPO training, validation/test rollout, and stress evaluation.","nodeIds":["file:train_segment_ppo.py","file:lending_rl_agent/__init__.py","concept:validation-test-stress-evaluation"]},{"id":"layer:documentation-config","name":"Documentation and Configuration","description":"Project docs and dependency manifest.","nodeIds":["document:README.md","document:docs/ARCHITECTURE.md","document:docs/ML_RL_PIPELINE_KO.md","config:requirements-neural.txt"]}],"tour":[{"order":1,"title":"Core Pipeline Overview","description":"Start from the compact methodology and internal pipeline spec, then follow the runtime files.","nodeIds":["document:README.md","document:docs/ML_RL_PIPELINE_KO.md"]},{"order":2,"title":"Data to Segment Calibration","description":"Understand how train-only risk scoring becomes segment-level simulator parameters.","nodeIds":["file:lending_rl_agent/data.py","class:lending_rl_agent/segment_simulator.py:SegmentCalibration","concept:segment-calibration"]},{"order":3,"title":"Simulator Accounting and Constraints","description":"Inspect the environment-level state/action schema, accounting transition, liquidation, and terminal runoff concepts.","nodeIds":["class:lending_rl_agent/segment_simulator.py:SegmentLendingEnv","concept:liquidity-capital-liquidation","concept:terminal-runoff-accounting"]},{"order":4,"title":"Torch Rollout and PPO Policy","description":"Follow the GPU batch simulator and attention PPO policy that perform the actual training rollouts.","nodeIds":["class:lending_rl_agent/torch_segment_simulator.py:TorchSegmentBatchEnv","class:lending_rl_agent/ppo.py:SegmentAttentionActorCritic","class:lending_rl_agent/ppo.py:PPOAgent"]},{"order":5,"title":"End-to-End Run","description":"Use the main training script to connect data, calibration, training, validation/test evaluation, stress tests, and outputs.","nodeIds":["file:train_segment_ppo.py","concept:validation-test-stress-evaluation"]}]}</script>
+  <script>
+    const graph = JSON.parse(document.getElementById("graph-data").textContent);
+    const nodes = graph.nodes;
+    const edges = graph.edges;
+    const layers = graph.layers || [];
+    const tour = graph.tour || [];
+
+    const colors = {
+      file: "#38bdf8",
+      class: "#a78bfa",
+      concept: "#34d399",
+      document: "#fbbf24",
+      config: "#fb923c",
+      function: "#fb7185",
+      module: "#22d3ee"
+    };
+
+    const nodeById = new Map(nodes.map(n => [n.id, n]));
+    const layerByNode = new Map();
+    layers.forEach(layer => (layer.nodeIds || []).forEach(id => layerByNode.set(id, layer)));
+
+    let selectedId = nodes[0]?.id || null;
+    let activeLayer = "all";
+    let query = "";
+
+    function layerIndex(id) {
+      const layer = layerByNode.get(id);
+      const index = layers.findIndex(l => l.id === layer?.id);
+      return index >= 0 ? index : layers.length;
+    }
+
+    function computeLayout() {
+      const grouped = new Map();
+      nodes.forEach(n => {
+        const li = layerIndex(n.id);
+        if (!grouped.has(li)) grouped.set(li, []);
+        grouped.get(li).push(n);
+      });
+      const width = 1200;
+      const height = 820;
+      const columns = Math.max(1, Math.min(4, Math.ceil(Math.sqrt(layers.length + 1))));
+      const colWidth = width / columns;
+      const rows = Math.ceil((layers.length + 1) / columns);
+      const rowHeight = height / rows;
+      const positions = new Map();
+
+      Array.from(grouped.keys()).sort((a, b) => a - b).forEach(li => {
+        const group = grouped.get(li);
+        const col = li % columns;
+        const row = Math.floor(li / columns);
+        const cx = col * colWidth + colWidth / 2;
+        const cy = row * rowHeight + rowHeight / 2;
+        const radiusX = Math.max(80, colWidth * 0.32);
+        const radiusY = Math.max(58, rowHeight * 0.28);
+        group.forEach((n, i) => {
+          const angle = group.length === 1 ? 0 : (Math.PI * 2 * i) / group.length - Math.PI / 2;
+          positions.set(n.id, {
+            x: cx + Math.cos(angle) * radiusX,
+            y: cy + Math.sin(angle) * radiusY,
+            w: nodeWidth(n),
+            h: 48
+          });
+        });
+      });
+      return positions;
+    }
+
+    function nodeWidth(n) {
+      return Math.max(130, Math.min(230, 52 + String(n.name || n.id).length * 7));
+    }
+
+    const positions = computeLayout();
+
+    function matches(n) {
+      const text = [n.id, n.name, n.type, n.summary, ...(n.tags || [])].join(" ").toLowerCase();
+      const byQuery = !query || text.includes(query.toLowerCase());
+      const byLayer = activeLayer === "all" || layerByNode.get(n.id)?.id === activeLayer;
+      return byQuery && byLayer;
+    }
+
+    function connectedToSelected(edge) {
+      return edge.source === selectedId || edge.target === selectedId;
+    }
+
+    function render() {
+      document.getElementById("project-title").textContent = graph.project?.name || "Knowledge Graph";
+      document.getElementById("project-description").textContent = graph.project?.description || "";
+      document.getElementById("stat-nodes").textContent = nodes.length;
+      document.getElementById("stat-edges").textContent = edges.length;
+      document.getElementById("stat-layers").textContent = layers.length;
+      document.getElementById("stat-tour").textContent = tour.length;
+
+      renderLayers();
+      renderTour();
+      renderLegend();
+      renderGraph();
+      renderDetails();
+      const visible = nodes.filter(matches).length;
+      document.getElementById("status").textContent = `${visible} / ${nodes.length} nodes visible`;
+    }
+
+    function renderLayers() {
+      const el = document.getElementById("layers");
+      el.innerHTML = "";
+      const all = document.createElement("button");
+      all.textContent = "All layers";
+      all.className = activeLayer === "all" ? "active" : "";
+      all.onclick = () => { activeLayer = "all"; render(); };
+      el.appendChild(all);
+      layers.forEach(layer => {
+        const btn = document.createElement("button");
+        btn.textContent = `${layer.name} (${(layer.nodeIds || []).length})`;
+        btn.className = activeLayer === layer.id ? "active" : "";
+        btn.onclick = () => { activeLayer = layer.id; render(); };
+        el.appendChild(btn);
+      });
+    }
+
+    function renderTour() {
+      const el = document.getElementById("tour");
+      el.innerHTML = "";
+      tour.forEach(step => {
+        const btn = document.createElement("button");
+        btn.textContent = `${step.order}. ${step.title}`;
+        btn.onclick = () => {
+          selectedId = step.nodeIds?.[0] || selectedId;
+          activeLayer = "all";
+          query = "";
+          document.getElementById("search").value = "";
+          render();
+        };
+        el.appendChild(btn);
+      });
+    }
+
+    function renderLegend() {
+      const el = document.getElementById("legend");
+      el.innerHTML = "";
+      Object.entries(colors).forEach(([type, color]) => {
+        if (!nodes.some(n => n.type === type)) return;
+        const row = document.createElement("div");
+        row.className = "legend-row";
+        row.innerHTML = `<span class="swatch" style="background:${color}"></span><span>${type}</span>`;
+        el.appendChild(row);
+      });
+    }
+
+    function renderGraph() {
+      const svg = document.getElementById("graph");
+      svg.innerHTML = `
+        <defs>
+          <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#64748b"></path>
+          </marker>
+          <marker id="arrow-highlight" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#38bdf8"></path>
+          </marker>
+        </defs>
+      `;
+      const edgeLayer = document.createElementNS("http://www.w3.org/2000/svg", "g");
+      const nodeLayer = document.createElementNS("http://www.w3.org/2000/svg", "g");
+      svg.append(edgeLayer, nodeLayer);
+
+      edges.forEach(e => {
+        const s = positions.get(e.source);
+        const t = positions.get(e.target);
+        if (!s || !t) return;
+        const sourceVisible = matches(nodeById.get(e.source));
+        const targetVisible = matches(nodeById.get(e.target));
+        if (!sourceVisible || !targetVisible) return;
+        const line = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        const midX = (s.x + t.x) / 2;
+        const d = `M ${s.x} ${s.y} C ${midX} ${s.y}, ${midX} ${t.y}, ${t.x} ${t.y}`;
+        line.setAttribute("d", d);
+        line.setAttribute("class", `edge ${connectedToSelected(e) ? "highlight" : ""}`);
+        line.setAttribute("marker-end", connectedToSelected(e) ? "url(#arrow-highlight)" : "url(#arrow)");
+        edgeLayer.appendChild(line);
+      });
+
+      nodes.forEach(n => {
+        const p = positions.get(n.id);
+        if (!p) return;
+        const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+        const visible = matches(n);
+        g.setAttribute("class", `node ${visible ? "" : "dim"} ${n.id === selectedId ? "selected" : ""}`);
+        g.setAttribute("transform", `translate(${p.x - p.w / 2}, ${p.y - p.h / 2})`);
+        g.onclick = () => { selectedId = n.id; render(); };
+        const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+        rect.setAttribute("width", p.w);
+        rect.setAttribute("height", p.h);
+        rect.setAttribute("fill", colors[n.type] || "#64748b");
+        g.appendChild(rect);
+
+        const title = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        title.setAttribute("x", 12);
+        title.setAttribute("y", 20);
+        title.textContent = truncate(n.name || n.id, 24);
+        g.appendChild(title);
+
+        const type = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        type.setAttribute("x", 12);
+        type.setAttribute("y", 38);
+        type.setAttribute("class", "type");
+        type.textContent = `${n.type} · ${n.complexity}`;
+        g.appendChild(type);
+        nodeLayer.appendChild(g);
+      });
+    }
+
+    function truncate(value, max) {
+      value = String(value);
+      return value.length > max ? value.slice(0, max - 1) + "…" : value;
+    }
+
+    function renderDetails() {
+      const el = document.getElementById("details");
+      const n = nodeById.get(selectedId);
+      if (!n) {
+        el.innerHTML = `<p class="empty">Click a node to inspect it.</p>`;
+        return;
+      }
+      const incoming = edges.filter(e => e.target === n.id);
+      const outgoing = edges.filter(e => e.source === n.id);
+      el.innerHTML = `
+        <div class="detail-title">${escapeHtml(n.name || n.id)}</div>
+        <div class="muted"><code>${escapeHtml(n.id)}</code></div>
+        <div class="badge-row">
+          <span class="badge">${escapeHtml(n.type)}</span>
+          <span class="badge">${escapeHtml(n.complexity || "moderate")}</span>
+          ${(n.tags || []).map(t => `<span class="badge">${escapeHtml(t)}</span>`).join("")}
+        </div>
+        <p>${escapeHtml(n.summary || "")}</p>
+        ${n.filePath ? `<p>File: <code>${escapeHtml(n.filePath)}</code></p>` : ""}
+        <h2>Outgoing</h2>
+        ${outgoing.length ? outgoing.map(relationHtml).join("") : `<p class="empty">No outgoing edges.</p>`}
+        <h2>Incoming</h2>
+        ${incoming.length ? incoming.map(relationHtml).join("") : `<p class="empty">No incoming edges.</p>`}
+      `;
+    }
+
+    function relationHtml(e) {
+      const other = nodeById.get(e.source === selectedId ? e.target : e.source);
+      return `<div class="relation"><strong>${escapeHtml(e.type)}</strong> ${escapeHtml(e.direction || "forward")}<br>${escapeHtml(other?.name || other?.id || "")}<br><span>${escapeHtml(e.description || "")}</span></div>`;
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    document.getElementById("search").addEventListener("input", event => {
+      query = event.target.value;
+      render();
+    });
+
+    render();
+  </script>
+</body>
+</html>
