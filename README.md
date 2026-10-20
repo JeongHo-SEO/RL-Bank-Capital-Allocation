@@ -122,7 +122,7 @@ Here, $B_t$ is current cash, $B_{\min}$ is the minimum reserve (**$10M**), and $
   <img src="assets/policy-explained.png" width="1000" alt="Transformer policy explained: each of 30 segment tokens combines shared bank context with that segment's demand, loan balances, and parameters. Attention compares segments. Actor heads decide where and how much to lend, while the critic estimates future return for PPO training.">
 </p>
 
-*Figure 2. Segment tokens, the allocation policy, and PPO training. Based on report §3.2–3.5, presentation slides 6–7, and the final implementation. Final model design led by Hu-yeon Cho. [Vector version](assets/policy-explained.svg).*
+*Figure 2. Segment tokens, the allocation policy, and PPO training. Based on report §3.2–3.5, presentation slides 6–7, and the final implementation. [Vector version](assets/policy-explained.svg).*
 
 **Why a Transformer?** Lending opportunities compete for the same cash. Attention lets each segment be evaluated in relation to the others. Here, tokens represent **borrower segments within a month**, rather than a sequence of months. **PPO** is the algorithm that trains this policy using rewards across monthly decisions.
 
@@ -168,8 +168,6 @@ Results below follow **Section 4.1 of the final report and the presentation**. P
 | BC · XGBoost | −10,134,452 | 44 (5.5%) | 9,019,565 |
 
 BC-MLP performed best among the learned policies, but remained below the heuristic it imitated. GRU and XGBoost scoring improved PPO profit without surpassing Greedy/LP. **Changing the actor or risk scorer alone was insufficient to beat strong heuristics**, motivating a framework that explicitly models future liquidity and capital risk.
-
-*Source note: the report's BC-XGBoost liquidation percentage differs from the saved CSV's evaluation denominator. The report and presentation values are retained here, as the primary sources for this summary.*
 
 ### Final Team Model
 
@@ -225,5 +223,3 @@ The week numbers follow the archive's folder names. They do not establish exact 
 - [My experiment guide](week13_Experiments/README.md): comparison setup and training commands.
 - [Final selected model and results](week15_Project_Final_Result/Code_Data/RL-main_codes/outputs/final_selected_ppo_406_dynamic_allwin): checkpoint, scenario tables, and training history.
 - [Final model configuration](week15_Project_Final_Result/Code_Data/RL-main_codes/outputs/final_selected_ppo_406_dynamic_allwin/metrics.json): settings for the selected run; consult this alongside the development README when reproducing the experiment.
-
-*Numerical results in this README prioritize the final report and presentation. Code-version guidance is based on the archived source files.*
